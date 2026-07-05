@@ -21,8 +21,6 @@ Search for "TODO (Member X)" in the code to jump straight to your spots.
  Still on Member 1:
    - Put the REAL endpoint + key into appsettings.json (locally!)
      and make one test call to verify the connection works.
-   - Git branches are created locally (see bottom of this file);
-     connect the GitHub remote and push.
 
 ---------------------------------------------------------------------
  MEMBER 2 — PII extraction                            [STATUS: TODO]
@@ -127,15 +125,15 @@ Search for "TODO (Member X)" in the code to jump straight to your spots.
 ---------------------------------------------------------------------
  GIT WORKFLOW
 ---------------------------------------------------------------------
- Local branches already created: main, F_task2/member2-extraction,
+ Repository: https://github.com/ArayikK/azure-transcript-analysis
+ Branches already on GitHub: main, F_task2/member2-extraction,
  F_task2/member3-speaker-roles, F_task2/member4-api-endpoint,
  F_task2/member5-testing.
 
- Member 1 connects GitHub and pushes everything:
-   git remote add origin https://github.com/<user>/<repo>.git
-   git push -u origin main
-   git push origin F_task2/member2-extraction F_task2/member3-speaker-roles F_task2/member4-api-endpoint F_task2/member5-testing
+ Each member starts like this:
+   git clone https://github.com/ArayikK/azure-transcript-analysis.git
+   git switch F_task2/member<N>-<your-part>
 
- Each member: work on YOUR branch, push, then open a Pull Request
+ Work on YOUR branch, commit, push, then open a Pull Request
  to main when your part is done.
 =====================================================================
