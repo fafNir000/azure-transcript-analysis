@@ -26,7 +26,7 @@ Search for "TODO (Member X)" in the code to jump straight to your spots.
 
 ---------------------------------------------------------------------
  MEMBER 2 — PII extraction                            [STATUS: TODO]
- Branch: feature/member2-extraction
+ Branch: F_task2/member2-extraction
 ---------------------------------------------------------------------
  File:   Services/TranscriptAnalysisService.cs
  Class:  TranscriptAnalysisService  (interface: ITranscriptAnalysisService)
@@ -47,7 +47,7 @@ Search for "TODO (Member X)" in the code to jump straight to your spots.
 
 ---------------------------------------------------------------------
  MEMBER 3 — Speaker role detection                    [STATUS: TODO]
- Branch: feature/member3-speaker-roles
+ Branch: F_task2/member3-speaker-roles
 ---------------------------------------------------------------------
  File:   Services/SpeakerRoleService.cs
  Class:  SpeakerRoleService  (interface: ISpeakerRoleService)
@@ -67,7 +67,7 @@ Search for "TODO (Member X)" in the code to jump straight to your spots.
 
 ---------------------------------------------------------------------
  MEMBER 4 — API endpoint                              [STATUS: TODO]
- Branch: feature/member4-api-endpoint
+ Branch: F_task2/member4-api-endpoint
 ---------------------------------------------------------------------
  File:   Controllers/TranscriptController.cs
  Class:  TranscriptController
@@ -94,7 +94,7 @@ Search for "TODO (Member X)" in the code to jump straight to your spots.
 
 ---------------------------------------------------------------------
  MEMBER 5 — Testing & documentation                   [STATUS: TODO]
- Branch: feature/member5-testing
+ Branch: F_task2/member5-testing
 ---------------------------------------------------------------------
  File:   Tests/TranscriptAnalysisTests.cs
  Class:  TranscriptAnalysisTests
@@ -127,14 +127,14 @@ Search for "TODO (Member X)" in the code to jump straight to your spots.
 ---------------------------------------------------------------------
  GIT WORKFLOW
 ---------------------------------------------------------------------
- Local branches already created: main, feature/member2-extraction,
- feature/member3-speaker-roles, feature/member4-api-endpoint,
- feature/member5-testing.
+ Local branches already created: main, F_task2/member2-extraction,
+ F_task2/member3-speaker-roles, F_task2/member4-api-endpoint,
+ F_task2/member5-testing.
 
  Member 1 connects GitHub and pushes everything:
    git remote add origin https://github.com/<user>/<repo>.git
    git push -u origin main
-   git push origin feature/member2-extraction feature/member3-speaker-roles feature/member4-api-endpoint feature/member5-testing
+   git push origin F_task2/member2-extraction F_task2/member3-speaker-roles F_task2/member4-api-endpoint F_task2/member5-testing
 
  Each member: work on YOUR branch, push, then open a Pull Request
  to main when your part is done.
