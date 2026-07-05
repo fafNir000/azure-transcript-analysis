@@ -1,0 +1,141 @@
+=====================================================================
+ TEAM NAVIGATION — WHO WORKS WHERE
+ Project: Task_2_TranscriptAnalysis (ASP.NET Core Web API, .NET 8)
+=====================================================================
+Every file below already exists. TODO files compile and run with
+placeholder behavior — open your file, read the big comment at the
+top of the class, and replace the placeholder with real logic.
+Search for "TODO (Member X)" in the code to jump straight to your spots.
+
+---------------------------------------------------------------------
+ MEMBER 1 — Azure connection & project setup          [STATUS: DONE]
+---------------------------------------------------------------------
+ File:   Services/AzureLanguageService.cs
+ Class:  AzureLanguageService  (interface: IAzureLanguageService)
+ Method: AnalyzeText(string text, string language)
+
+ Already done: project structure, NuGet package Azure.AI.TextAnalytics,
+ endpoint/key stored in appsettings.json (placeholders), Azure client,
+ PII detection call, DI registration in Program.cs.
+
+ Still on Member 1:
+   - Put the REAL endpoint + key into appsettings.json (locally!)
+     and make one test call to verify the connection works.
+   - Git branches are created locally (see bottom of this file);
+     connect the GitHub remote and push.
+
+---------------------------------------------------------------------
+ MEMBER 2 — PII extraction                            [STATUS: TODO]
+ Branch: feature/member2-extraction
+---------------------------------------------------------------------
+ File:   Services/TranscriptAnalysisService.cs
+ Class:  TranscriptAnalysisService  (interface: ITranscriptAnalysisService)
+ Method: ExtractAttributes(string transcriptText, string language)
+         -> currently returns an empty ExtractedAttributes; replace it.
+
+ What to do:
+   1. Call _azureLanguageService.AnalyzeText(...) (already injected).
+   2. Loop over the returned PII entities and map categories:
+        Person -> Name, Address -> Address,
+        USSocialSecurityNumber -> SocialSecurityNumber,
+        PhoneNumber -> PhoneNumber, Email -> Email
+   3. Anything not found stays null (e.g. no phone -> phoneNumber: null).
+   4. Must work for both English ("en") and Armenian ("hy").
+
+ Related model (do not change without team agreement):
+   Models/ExtractedAttributes.cs
+
+---------------------------------------------------------------------
+ MEMBER 3 — Speaker role detection                    [STATUS: TODO]
+ Branch: feature/member3-speaker-roles
+---------------------------------------------------------------------
+ File:   Services/SpeakerRoleService.cs
+ Class:  SpeakerRoleService  (interface: ISpeakerRoleService)
+ Method: SplitConversation(string transcriptText, string language)
+         -> currently returns the whole text as one turn; replace it.
+
+ What to do:
+   1. Split the transcript into turns (usually by line).
+   2. If lines have labels ("Agent:", "Caller:") -> use them directly.
+   3. If NO labels -> first speaker = Agent, second = Caller, alternating.
+   4. If roles cannot be detected at all -> "Speaker 1" / "Speaker 2".
+   5. Must work for both English and Armenian text.
+   6. Return List<ConversationTurn> (one item per utterance).
+
+ Related model (do not change without team agreement):
+   Models/ConversationTurn.cs
+
+---------------------------------------------------------------------
+ MEMBER 4 — API endpoint                              [STATUS: TODO]
+ Branch: feature/member4-api-endpoint
+---------------------------------------------------------------------
+ File:   Controllers/TranscriptController.cs
+ Class:  TranscriptController
+ Method: Analyze([FromBody] TranscriptRequest request)
+         -> POST /api/transcript/analyze
+         -> currently returns 501 Not Implemented; replace it.
+
+ What to do:
+   1. Validation (return 400 Bad Request with a clear message):
+        - transcriptText not empty
+        - language is "en" or "hy" only
+        - transcriptText max 50,000 characters
+   2. Call the two injected services:
+        _speakerRoleService.SplitConversation(...)       (Member 3)
+        _transcriptAnalysisService.ExtractAttributes(...) (Member 2)
+   3. Error handling (catch Azure.RequestFailedException):
+        - wrong Azure key  -> 401
+        - Azure down       -> 503 with an error message
+        - anything else    -> 500
+   4. Return TranscriptResponse { Conversation, ExtractedAttributes }.
+
+ Related models (do not change without team agreement):
+   Models/TranscriptRequest.cs, Models/TranscriptResponse.cs
+
+---------------------------------------------------------------------
+ MEMBER 5 — Testing & documentation                   [STATUS: TODO]
+ Branch: feature/member5-testing
+---------------------------------------------------------------------
+ File:   Tests/TranscriptAnalysisTests.cs
+ Class:  TranscriptAnalysisTests
+ Run:    dotnet test   (from the project folder)
+
+ 5 test stubs already exist, marked with [Fact(Skip = "...")].
+ Remove the Skip argument and implement each one:
+   - Analyze_EnglishTranscript_ReturnsExtractedAttributes   (TEST 1, 3)
+   - Analyze_ArmenianTranscript_ReturnsExtractedAttributes  (TEST 2)
+   - Analyze_TranscriptWithoutPii_ReturnsNullAttributes     (TEST 4)
+   - Analyze_EmptyTranscript_ReturnsBadRequest              (TEST 5)
+   - Analyze_UnsupportedLanguage_ReturnsBadRequest          (TEST 6)
+ Add more tests for TEST 7 / TEST 8 (transcripts with and without
+ Agent/Caller labels — assert on the returned conversation roles).
+
+ Also on Member 5 (docs go in the /Docs folder):
+   - Docs/TestResults.md  — what was tested, passed, failed, to fix
+   - Docs/ApiDocumentation.md — how to use the endpoint, inputs,
+     outputs, example requests/responses (see README.md for a start)
+
+---------------------------------------------------------------------
+ SHARED FILES (coordinate before changing)
+---------------------------------------------------------------------
+ Program.cs          — service registration (DI), app startup
+ appsettings.json    — AzureLanguageEndpoint / AzureLanguageKey
+                       (placeholders; NEVER commit real keys)
+ Models/*.cs         — the shared data contracts between all members
+ README.md           — project overview and setup instructions
+
+---------------------------------------------------------------------
+ GIT WORKFLOW
+---------------------------------------------------------------------
+ Local branches already created: main, feature/member2-extraction,
+ feature/member3-speaker-roles, feature/member4-api-endpoint,
+ feature/member5-testing.
+
+ Member 1 connects GitHub and pushes everything:
+   git remote add origin https://github.com/<user>/<repo>.git
+   git push -u origin main
+   git push origin feature/member2-extraction feature/member3-speaker-roles feature/member4-api-endpoint feature/member5-testing
+
+ Each member: work on YOUR branch, push, then open a Pull Request
+ to main when your part is done.
+=====================================================================
