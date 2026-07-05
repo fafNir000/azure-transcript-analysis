@@ -33,7 +33,7 @@ TranscriptResponse  { conversation, extractedAttributes }
 | `Models/` | shared | ✅ Done | `TranscriptRequest`, `TranscriptResponse`, `ExtractedAttributes`, `ConversationTurn`. Coordinate with the team before changing these. |
 | `Program.cs` | shared | ✅ Done | App startup; registers all services for dependency injection. |
 | `appsettings.json` | shared | ⚠️ | Azure endpoint + key. **Placeholder values — put your real values in locally, never commit real keys.** |
-| `Docs/` | shared | — | Team documentation. |
+| `docs/` | shared | — | Team documentation. |
 
 Each TODO file contains detailed step-by-step hints in its class comment — start there.
 

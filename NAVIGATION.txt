@@ -110,9 +110,9 @@ Search for "TODO (Member X)" in the code to jump straight to your spots.
  Add more tests for TEST 7 / TEST 8 (transcripts with and without
  Agent/Caller labels — assert on the returned conversation roles).
 
- Also on Member 5 (docs go in the /Docs folder):
-   - Docs/TestResults.md  — what was tested, passed, failed, to fix
-   - Docs/ApiDocumentation.md — how to use the endpoint, inputs,
+ Also on Member 5 (docs go in the /docs folder):
+   - docs/TestResults.md  — what was tested, passed, failed, to fix
+   - docs/ApiDocumentation.md — how to use the endpoint, inputs,
      outputs, example requests/responses (see README.md for a start)
 
 ---------------------------------------------------------------------
