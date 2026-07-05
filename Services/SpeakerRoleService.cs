@@ -12,52 +12,106 @@ public interface ISpeakerRoleService
     /// Splits a raw transcript into conversation turns and assigns a role
     /// ("Agent" / "Caller", or "Speaker 1" / "Speaker 2" as a fallback) to each turn.
     /// </summary>
-    /// <param name="transcriptText">The full transcript text.</param>
-    /// <param name="language">"en" or "hy".</param>
     List<ConversationTurn> SplitConversation(string transcriptText, string language);
 }
 
 /// <summary>
 /// OWNER: Member 3
 ///
-/// TODO (Member 3): Create speaker role detection logic:
-///   - Split the conversation into Agent / Caller roles.
-///   - Fall back to "Speaker 1" / "Speaker 2" if roles cannot be detected.
-///   - Support Armenian ("hy") and English ("en").
-///
-/// Suggested steps:
-///   1. Split transcriptText into lines/turns. Transcripts often look like:
-///        "Agent: Hello!"                          (explicit label)
-///        "Speaker 1: Hello!"                      (generic label)
-///        or plain alternating lines with no labels at all.
-///   2. If a line starts with an explicit label (e.g. "Agent:", "Caller:",
-///      "Operator:"), use it to assign the role.
-///   3. If there are NO labels, use simple logic (team decision):
-///      - First speaker  = "Agent"
-///      - Second speaker = "Caller"
-///      - Alternate between them for the following turns.
-///      (Optional improvement: keyword heuristics — the speaker who says
-///      "how can I help you" / "ինչպե՞ս կարող եմ օգնել" is likely the Agent.)
-///   4. If roles cannot be detected at all, fall back to
-///      "Speaker 1" and "Speaker 2" (alternating between consecutive turns).
-///   5. Return one ConversationTurn per utterance:
-///        new ConversationTurn { Role = "Agent", Text = "Hello!" }
-///
-/// Note: this method is pure text processing — it does NOT need to call Azure.
+/// Splits a transcript into conversation turns and determines speaker roles.
+/// This service performs only text processing and does not call Azure.
 /// </summary>
 public class SpeakerRoleService : ISpeakerRoleService
 {
-    /// <inheritdoc />
     public List<ConversationTurn> SplitConversation(string transcriptText, string language)
     {
-        // TODO (Member 3): replace this placeholder with the real logic
-        // described in the class comment above.
+        var conversation = new List<ConversationTurn>();
 
-        // Placeholder so the project compiles and runs:
-        // returns the whole transcript as a single unlabeled turn.
-        return new List<ConversationTurn>
+        if (string.IsNullOrWhiteSpace(transcriptText))
+            return conversation;
+
+        var lines = transcriptText
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(l => l.Trim())
+            .Where(l => !string.IsNullOrWhiteSpace(l))
+            .ToList();
+
+        if (lines.Count == 0)
+            return conversation;
+
+        bool hasExplicitLabels = lines.Any(line =>
+            line.StartsWith("Agent:", StringComparison.OrdinalIgnoreCase) ||
+            line.StartsWith("Caller:", StringComparison.OrdinalIgnoreCase) ||
+            line.StartsWith("Operator:", StringComparison.OrdinalIgnoreCase) ||
+            line.StartsWith("Customer:", StringComparison.OrdinalIgnoreCase) ||
+            line.StartsWith("Client:", StringComparison.OrdinalIgnoreCase) ||
+            line.StartsWith("Speaker 1:", StringComparison.OrdinalIgnoreCase) ||
+            line.StartsWith("Speaker 2:", StringComparison.OrdinalIgnoreCase) ||
+            line.StartsWith("Օպերատոր:", StringComparison.OrdinalIgnoreCase) ||
+            line.StartsWith("Հաճախորդ:", StringComparison.OrdinalIgnoreCase));
+
+        if (hasExplicitLabels)
         {
-            new ConversationTurn { Role = "Speaker 1", Text = transcriptText }
-        };
+            foreach (var line in lines)
+            {
+                string role;
+                string text;
+
+                if (line.StartsWith("Agent:", StringComparison.OrdinalIgnoreCase) ||
+                    line.StartsWith("Operator:", StringComparison.OrdinalIgnoreCase) ||
+                    line.StartsWith("Օպերատոր:", StringComparison.OrdinalIgnoreCase))
+                {
+                    role = "Agent";
+                    text = line.Substring(line.IndexOf(':') + 1).Trim();
+                }
+                else if (line.StartsWith("Caller:", StringComparison.OrdinalIgnoreCase) ||
+                         line.StartsWith("Customer:", StringComparison.OrdinalIgnoreCase) ||
+                         line.StartsWith("Client:", StringComparison.OrdinalIgnoreCase) ||
+                         line.StartsWith("Հաճախորդ:", StringComparison.OrdinalIgnoreCase))
+                {
+                    role = "Caller";
+                    text = line.Substring(line.IndexOf(':') + 1).Trim();
+                }
+                else if (line.StartsWith("Speaker 1:", StringComparison.OrdinalIgnoreCase))
+                {
+                    role = "Speaker 1";
+                    text = line.Substring(line.IndexOf(':') + 1).Trim();
+                }
+                else if (line.StartsWith("Speaker 2:", StringComparison.OrdinalIgnoreCase))
+                {
+                    role = "Speaker 2";
+                    text = line.Substring(line.IndexOf(':') + 1).Trim();
+                }
+                else
+                {
+                    role = "Speaker 1";
+                    text = line;
+                }
+
+                conversation.Add(new ConversationTurn
+                {
+                    Role = role,
+                    Text = text
+                });
+            }
+
+            return conversation;
+        }
+
+        // No labels found -> alternate Agent / Caller
+        bool agentTurn = true;
+
+        foreach (var line in lines)
+        {
+            conversation.Add(new ConversationTurn
+            {
+                Role = agentTurn ? "Agent" : "Caller",
+                Text = line
+            });
+
+            agentTurn = !agentTurn;
+        }
+
+        return conversation;
     }
 }
