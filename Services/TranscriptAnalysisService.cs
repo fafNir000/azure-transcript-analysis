@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Azure.AI.TextAnalytics;
 using Task_2_TranscriptAnalysis.Models;
 
@@ -22,9 +23,19 @@ public interface ITranscriptAnalysisService
 /// OWNER: Member 2
 ///
 /// Extracts business attributes from Azure AI Language Service PII results.
+///
+/// SSN NOTE (found during live testing): when a caller says an SSN alone in
+/// a reply line ("It is 123-45-6789"), Azure classifies it as PhoneNumber,
+/// because the surrounding words "social security number" are in the AGENT's
+/// previous line. We therefore re-check every PhoneNumber entity against the
+/// SSN pattern XXX-XX-XXXX — a US phone number never has that 3-2-4 grouping,
+/// so the reclassification is safe.
 /// </summary>
 public class TranscriptAnalysisService : ITranscriptAnalysisService
 {
+    /// <summary>US Social Security Number pattern: 3 digits - 2 digits - 4 digits.</summary>
+    private static readonly Regex SsnPattern = new(@"^\d{3}-\d{2}-\d{4}$", RegexOptions.Compiled);
+
     private readonly IAzureLanguageService _azureLanguageService;
 
     /// <summary>
@@ -40,7 +51,9 @@ public class TranscriptAnalysisService : ITranscriptAnalysisService
     public async Task<ExtractedAttributes> ExtractAttributes(string transcriptText, string language)
     {
         // Call Azure AI Language Service to detect PII entities.
-        PiiEntityCollection entities =
+        // (Long transcripts are chunked inside AzureLanguageService — the
+        // returned list already contains the entities of ALL chunks.)
+        List<PiiEntity> entities =
             await _azureLanguageService.AnalyzeText(transcriptText, language);
 
         var result = new ExtractedAttributes();
@@ -86,7 +99,17 @@ public class TranscriptAnalysisService : ITranscriptAnalysisService
             }
             else if (category == "PhoneNumber")
             {
-                if (entity.ConfidenceScore > phoneConfidence)
+                // SSN said alone in a line comes back as PhoneNumber (see
+                // class comment). Route XXX-XX-XXXX values to the SSN field.
+                if (SsnPattern.IsMatch(entity.Text.Trim()))
+                {
+                    if (entity.ConfidenceScore > ssnConfidence)
+                    {
+                        ssnConfidence = entity.ConfidenceScore;
+                        result.SocialSecurityNumber = entity.Text.Trim();
+                    }
+                }
+                else if (entity.ConfidenceScore > phoneConfidence)
                 {
                     phoneConfidence = entity.ConfidenceScore;
                     result.PhoneNumber = entity.Text;

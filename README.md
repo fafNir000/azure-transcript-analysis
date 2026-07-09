@@ -25,17 +25,16 @@ TranscriptResponse  { conversation, extractedAttributes }
 
 | Path | Owner | Status | Description |
 |---|---|---|---|
-| `Services/AzureLanguageService.cs` | **Member 1** | ✅ Done | Connects to Azure AI Language Service; `AnalyzeText(text, language)` runs PII detection. All Azure access goes through this class. |
-| `Services/TranscriptAnalysisService.cs` | **Member 2** | 🔲 TODO | Extraction logic: map Azure PII entities (Person, Address, USSocialSecurityNumber, PhoneNumber, Email) into the `ExtractedAttributes` model. |
-| `Services/SpeakerRoleService.cs` | **Member 3** | 🔲 TODO | Speaker role detection: split the conversation into Agent/Caller turns; fall back to Speaker 1/Speaker 2; support English and Armenian. |
-| `Controllers/TranscriptController.cs` | **Member 4** | 🔲 TODO | `POST /api/transcript/analyze` endpoint: input validation (empty text, language must be `en`/`hy`, max 50,000 chars) and error handling (Azure down, wrong key, invalid input). |
-| `Tests/TranscriptAnalysisTests.cs` | **Member 5** | 🔲 TODO | Integration tests: English transcript, Armenian transcript, missing attributes (nulls), empty-input validation, wrong-language validation. |
+| `Services/AzureLanguageService.cs` | **Member 1** | ✅ Done | Connects to Azure AI Language Service; `AnalyzeText(text, language)` runs PII detection. Splits long texts into ≤5,000-char chunks (Azure's sync limit is 5,120/document). All Azure access goes through this class. |
+| `Services/TranscriptAnalysisService.cs` | **Member 2** | ✅ Done | Extraction logic: maps Azure PII entities (Person, Address, USSocialSecurityNumber, PhoneNumber, Email) into the `ExtractedAttributes` model; reroutes SSN-pattern "phone numbers" to the SSN field. |
+| `Services/SpeakerRoleService.cs` | **Member 3** | ✅ Done | Speaker role detection: splits the conversation into Agent/Caller turns (labels or alternating), falls back to Speaker 1/Speaker 2; English and Armenian labels. |
+| `Controllers/TranscriptController.cs` | **Member 4** | ✅ Done | `POST /api/transcript/analyze` endpoint: input validation (empty text, language must be `en`/`hy`, max 50,000 chars) and error handling (400/401/503/500). |
+| `Tests/TranscriptAnalysisTests.cs` | **Member 5** | ✅ Done | 10 passing integration tests (Azure faked for determinism): attributes, Armenian, nulls, validation, roles, SSN reclassification, chunking. |
 | `Models/` | shared | ✅ Done | `TranscriptRequest`, `TranscriptResponse`, `ExtractedAttributes`, `ConversationTurn`. Coordinate with the team before changing these. |
-| `Program.cs` | shared | ✅ Done | App startup; registers all services for dependency injection. |
-| `appsettings.json` | shared | ⚠️ | Azure endpoint + key. **Placeholder values — put your real values in locally, never commit real keys.** |
-| `docs/` | shared | — | Team documentation. |
-
-Each TODO file contains detailed step-by-step hints in its class comment — start there.
+| `Program.cs` | shared | ✅ Done | App startup; DI registrations + CORS policy for the future frontend. |
+| `appsettings.json` | shared | ⚠️ | Azure endpoint + key. **Placeholder values — real values go in user-secrets, never in git.** |
+| `docs/ApiDocumentation.md` | shared | ✅ Done | Full API reference for integrators (frontend team). |
+| `docs/TestResults.md` | shared | ✅ Done | Real automated + live-Azure test results, findings, and open questions. |
 
 ## Getting started
 
@@ -68,8 +67,8 @@ Azure **Language** resource (Azure Portal → Create resource → "Language serv
    dotnet test
    ```
 
-   All tests are currently skipped placeholders — Member 5 enables them as the
-   endpoint gets implemented.
+   All 10 integration tests run without an Azure key (Azure is replaced with a
+   fake inside the tests), so `dotnet test` works on any machine.
 
 ## API contract
 

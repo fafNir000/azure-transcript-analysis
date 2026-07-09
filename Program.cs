@@ -12,6 +12,15 @@ builder.Services.AddControllers();          // enables [ApiController] classes i
 builder.Services.AddEndpointsApiExplorer(); // needed by Swagger to discover endpoints
 builder.Services.AddSwaggerGen();           // Swagger UI for manual testing in the browser
 
+// CORS: browsers block a frontend served from another address (e.g. React on
+// localhost:3000) from calling this API unless we explicitly allow it.
+// This open policy is fine for development; tighten it to the real frontend
+// origin (.WithOrigins("https://our-app.example")) before production.
+const string FrontendCorsPolicy = "Frontend";
+builder.Services.AddCors(options =>
+    options.AddPolicy(FrontendCorsPolicy, policy =>
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+
 // ---------------------------------------------------------------------------
 // 2. Register OUR services (dependency injection)
 //
@@ -40,6 +49,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection(); // redirect http:// requests to https://
+
+app.UseCors(FrontendCorsPolicy); // must run before MapControllers
 
 app.MapControllers(); // route incoming requests to the controllers in /Controllers
 

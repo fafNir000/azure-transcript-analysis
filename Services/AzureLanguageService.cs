@@ -1,3 +1,4 @@
+using System.Text;
 using Azure;
 using Azure.AI.TextAnalytics;
 
@@ -6,33 +7,47 @@ namespace Task_2_TranscriptAnalysis.Services;
 /// <summary>
 /// Interface for the Azure connection service.
 /// Other services depend on this INTERFACE (not the concrete class) so that
-/// Member 5 can replace it with a fake/mock implementation in tests.
+/// tests can replace it with a fake implementation (see /Tests).
 /// </summary>
 public interface IAzureLanguageService
 {
     /// <summary>
     /// Sends text to Azure AI Language Service and returns the PII
     /// (Personally Identifiable Information) entities it detected.
+    /// Long texts are split into chunks internally (Azure's synchronous API
+    /// accepts at most 5,120 characters per document), so callers can pass
+    /// transcripts up to the API's own 50,000-character limit safely.
     /// </summary>
     /// <param name="text">The text to analyze (e.g. the whole transcript).</param>
     /// <param name="language">Language code: "en" for English, "hy" for Armenian.</param>
-    /// <returns>The collection of PII entities Azure found (may be empty).</returns>
-    Task<PiiEntityCollection> AnalyzeText(string text, string language);
+    /// <returns>All PII entities Azure found across all chunks (may be empty).</returns>
+    Task<List<PiiEntity>> AnalyzeText(string text, string language);
 }
 
 /// <summary>
-/// OWNER: Member 1 (this file is complete — do not edit unless the Azure setup changes).
+/// OWNER: Member 1 (complete).
 ///
 /// This is the ONLY class that talks to Azure directly. It:
-///   1. Reads the endpoint + key from configuration (appsettings.json).
+///   1. Reads the endpoint + key from configuration (user-secrets/appsettings.json).
 ///   2. Creates a TextAnalyticsClient (the official Azure SDK client).
 ///   3. Exposes one method, AnalyzeText, that runs PII detection.
 ///
-/// Everyone else (Members 2-4) should call this service instead of using the
-/// Azure SDK directly. That keeps all Azure details in one place.
+/// CHUNKING (why it exists): Azure's synchronous PII API has two hard limits —
+/// max 5,120 characters per document and max 5 documents per request
+/// (https://learn.microsoft.com/azure/ai-services/language-service/concepts/data-limits).
+/// Our API accepts transcripts up to 50,000 characters, so this class splits
+/// long text into chunks of at most 5,000 characters (cutting at line breaks,
+/// never mid-line), sends up to 5 chunks per batch request, and merges the
+/// entities from all chunks into one list. Callers never notice the chunking.
 /// </summary>
 public class AzureLanguageService : IAzureLanguageService
 {
+    /// <summary>Safety margin under Azure's 5,120-characters-per-document limit.</summary>
+    public const int MaxChunkSize = 5000;
+
+    /// <summary>Azure allows at most 5 documents per synchronous PII request.</summary>
+    public const int MaxDocumentsPerRequest = 5;
+
     private readonly TextAnalyticsClient _client;
 
     /// <summary>
@@ -41,9 +56,8 @@ public class AzureLanguageService : IAzureLanguageService
     /// </summary>
     public AzureLanguageService(IConfiguration configuration)
     {
-        // Read the Azure settings from appsettings.json.
-        // In production these should come from environment variables or a
-        // secret store — never commit real keys to source control!
+        // Real values come from user-secrets on each developer's machine;
+        // appsettings.json holds only placeholders. Never commit real keys!
         string? endpoint = configuration["AzureLanguageEndpoint"];
         string? key = configuration["AzureLanguageKey"];
 
@@ -51,7 +65,7 @@ public class AzureLanguageService : IAzureLanguageService
         {
             throw new InvalidOperationException(
                 "Azure Language Service is not configured. " +
-                "Set 'AzureLanguageEndpoint' and 'AzureLanguageKey' in appsettings.json.");
+                "Set 'AzureLanguageEndpoint' and 'AzureLanguageKey' via user-secrets.");
         }
 
         // The client is thread-safe, so one instance is shared by the whole app
@@ -60,20 +74,92 @@ public class AzureLanguageService : IAzureLanguageService
     }
 
     /// <inheritdoc />
-    public async Task<PiiEntityCollection> AnalyzeText(string text, string language)
+    public async Task<List<PiiEntity>> AnalyzeText(string text, string language)
     {
-        // Call the "Recognize PII Entities" feature of Azure AI Language Service.
-        // Azure scans the text and returns entities such as Person, Address,
-        // PhoneNumber, Email, USSocialSecurityNumber, each with a confidence score.
-        //
-        // NOTE: this call can throw RequestFailedException if:
-        //   - the endpoint/key is wrong (HTTP 401),
-        //   - Azure is unreachable or down,
-        //   - the language is not supported for PII detection.
-        // Member 4 handles those errors in the controller.
-        Response<PiiEntityCollection> response =
-            await _client.RecognizePiiEntitiesAsync(text, language);
+        List<string> chunks = SplitIntoChunks(text, MaxChunkSize);
+        var allEntities = new List<PiiEntity>();
 
-        return response.Value;
+        // Send the chunks in batches of up to 5 documents per request.
+        // A maximum-size transcript (50,000 chars) becomes ~10 chunks = 2 requests.
+        //
+        // NOTE: these calls throw Azure.RequestFailedException if the key is
+        // wrong (Status 401) or Azure is unreachable (Status 0). Deliberately
+        // NOT caught here — the controller translates errors into HTTP answers.
+        for (int i = 0; i < chunks.Count; i += MaxDocumentsPerRequest)
+        {
+            List<string> batch = chunks.Skip(i).Take(MaxDocumentsPerRequest).ToList();
+
+            Response<RecognizePiiEntitiesResultCollection> response =
+                await _client.RecognizePiiEntitiesBatchAsync(batch, language);
+
+            foreach (RecognizePiiEntitiesResult result in response.Value)
+            {
+                // A document-level error (e.g. unsupported language) does not
+                // throw by itself in batch mode — surface it as an exception
+                // so failures are never silently swallowed.
+                if (result.HasError)
+                {
+                    throw new InvalidOperationException(
+                        $"Azure could not analyze part of the transcript: {result.Error.Message}");
+                }
+
+                allEntities.AddRange(result.Entities);
+            }
+        }
+
+        return allEntities;
+    }
+
+    /// <summary>
+    /// Splits text into chunks of at most <paramref name="maxChunkSize"/>
+    /// characters, cutting at line breaks so that no line (and therefore no
+    /// entity, which never spans lines in a transcript) is ever cut in half.
+    /// A single line longer than the limit is hard-split as a last resort.
+    /// Public and static so the unit tests can verify it directly.
+    /// </summary>
+    public static List<string> SplitIntoChunks(string text, int maxChunkSize)
+    {
+        var chunks = new List<string>();
+
+        if (text.Length <= maxChunkSize)
+        {
+            chunks.Add(text);
+            return chunks;
+        }
+
+        var current = new StringBuilder();
+
+        foreach (string rawLine in text.Split('\n'))
+        {
+            string line = rawLine;
+
+            // Last resort: one single line longer than the limit gets hard-split.
+            while (line.Length > maxChunkSize)
+            {
+                if (current.Length > 0)
+                {
+                    chunks.Add(current.ToString());
+                    current.Clear();
+                }
+                chunks.Add(line.Substring(0, maxChunkSize));
+                line = line.Substring(maxChunkSize);
+            }
+
+            // Would adding this line overflow the current chunk? Close it first.
+            if (current.Length > 0 && current.Length + 1 + line.Length > maxChunkSize)
+            {
+                chunks.Add(current.ToString());
+                current.Clear();
+            }
+
+            if (current.Length > 0)
+                current.Append('\n');
+            current.Append(line);
+        }
+
+        if (current.Length > 0)
+            chunks.Add(current.ToString());
+
+        return chunks;
     }
 }

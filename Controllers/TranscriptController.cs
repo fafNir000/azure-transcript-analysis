@@ -76,7 +76,9 @@ public class TranscriptController : ControllerBase
             _logger.LogError(ex, "Azure Language Service authentication failed. Invalid key configured.");
             return StatusCode(StatusCodes.Status401Unauthorized, "Unauthorized: Invalid configuration key.");
         }
-        catch (Azure.RequestFailedException ex) when (ex.Status >= 500 || ex.Status == 503)
+        // Status 0 = the request never reached Azure (network down/unreachable);
+        // the SDK wraps network failures in RequestFailedException with Status 0.
+        catch (Azure.RequestFailedException ex) when (ex.Status == 0 || ex.Status >= 500)
         {
             _logger.LogError(ex, "Azure Language Service returned a server error or is unavailable.");
             return StatusCode(StatusCodes.Status503ServiceUnavailable, "Service Unavailable: Azure service is currently unreachable.");

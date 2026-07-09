@@ -26,7 +26,7 @@ Search for "TODO (Member X)" in the code to jump straight to your spots.
      (direct message) — never commit it or post it publicly.
 
 ---------------------------------------------------------------------
- MEMBER 2 — PII extraction                            [STATUS: TODO]
+ MEMBER 2 — PII extraction                            [STATUS: DONE]
  Branch: F_task2/member2-extraction
 ---------------------------------------------------------------------
  File:   Services/TranscriptAnalysisService.cs
@@ -47,7 +47,7 @@ Search for "TODO (Member X)" in the code to jump straight to your spots.
    Models/ExtractedAttributes.cs
 
 ---------------------------------------------------------------------
- MEMBER 3 — Speaker role detection                    [STATUS: TODO]
+ MEMBER 3 — Speaker role detection                    [STATUS: DONE]
  Branch: F_task2/member3-speaker-roles
 ---------------------------------------------------------------------
  File:   Services/SpeakerRoleService.cs
@@ -67,7 +67,7 @@ Search for "TODO (Member X)" in the code to jump straight to your spots.
    Models/ConversationTurn.cs
 
 ---------------------------------------------------------------------
- MEMBER 4 — API endpoint                              [STATUS: TODO]
+ MEMBER 4 — API endpoint                              [STATUS: DONE]
  Branch: F_task2/member4-api-endpoint
 ---------------------------------------------------------------------
  File:   Controllers/TranscriptController.cs
@@ -94,7 +94,7 @@ Search for "TODO (Member X)" in the code to jump straight to your spots.
    Models/TranscriptRequest.cs, Models/TranscriptResponse.cs
 
 ---------------------------------------------------------------------
- MEMBER 5 — Testing & documentation                   [STATUS: TODO]
+ MEMBER 5 — Testing & documentation                   [STATUS: DONE]
  Branch: F_task2/member5-testing
 ---------------------------------------------------------------------
  File:   Tests/TranscriptAnalysisTests.cs

@@ -255,7 +255,7 @@ That is why the chain of methods that eventually calls Azure is async
 all the way up:
     controller Analyze(...)            -> async Task<ActionResult<...>>
     ExtractAttributes(...)             -> async Task<ExtractedAttributes>
-    AzureLanguageService.AnalyzeText() -> async Task<PiiEntityCollection>
+    AzureLanguageService.AnalyzeText() -> async Task<List<PiiEntity>>
 Member 3's SplitConversation is NOT async — it is pure string processing,
 no waiting involved, so a plain method is correct there.
 
@@ -506,6 +506,18 @@ Visual Studio / VS Code (with the REST Client extension). Optional helper.
 File: Services/AzureLanguageService.cs — the ONLY class allowed to talk
 to Azure directly. Everything Azure-related is concentrated here so the
 rest of the code never deals with URLs, keys, or SDK details.
+
+UPDATE (2026-07-09) — CHUNKING ADDED: Azure's synchronous PII API accepts
+at most 5,120 characters per document and 5 documents per request. Our API
+accepts 50,000 characters, so AnalyzeText now: (1) splits long text into
+chunks of max 5,000 characters using SplitIntoChunks (cutting at line
+breaks, never mid-line), (2) sends up to 5 chunks per batch request via
+RecognizePiiEntitiesBatchAsync, and (3) merges all chunks' entities into
+one List<PiiEntity>, which is the new return type (previously
+PiiEntityCollection — a list is easier to merge and to fake in tests).
+Callers (Member 2's service) are unaffected apart from the type name.
+The walkthrough below describes the original single-call core, which
+still applies to each individual batch request.
 
   public interface IAzureLanguageService
   {
