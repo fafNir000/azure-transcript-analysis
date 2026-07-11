@@ -16,7 +16,7 @@ Two kinds of testing were performed:
 
 ---
 
-## 1. Automated test suite — 10/10 passing
+## 1. Automated test suite — 11/11 passing
 
 | # | Test | Verifies | Result |
 |---|---|---|---|
@@ -30,8 +30,9 @@ Two kinds of testing were performed:
 | 8 | `Analyze_UnlabeledConversation_AlternatesRoles` | No labels → Agent first, then alternate (TEST 8) | ✅ PASS |
 | 9 | `Analyze_SsnClassifiedAsPhoneByAzure_IsReclassified` | XXX-XX-XXXX "phone" rerouted to SSN field | ✅ PASS |
 | 10 | `SplitIntoChunks_LongText_RespectsLimitAndPreservesContent` | Chunking ≤5,000 chars/chunk, no content loss | ✅ PASS |
+| 11 | `Analyze_MixedLabelConversation_UnlabeledLineContinuesPreviousSpeaker` | Unlabeled line continues previous speaker, not `Speaker 1` | ✅ PASS |
 
-Command: `dotnet test` → `Passed! - Failed: 0, Passed: 10, Skipped: 0, Total: 10`
+Command: `dotnet test` → `Passed! - Failed: 0, Passed: 11, Skipped: 0, Total: 11`
 
 ---
 
@@ -100,14 +101,16 @@ lines, this affected us directly. **Fix applied** in
 (a grouping US phone numbers never use) is routed to the SSN field. Covered by
 automated test #9 and re-verified live (Test A).
 
-### Finding 2 — transient Azure timeout (documented risk)
+### Finding 2 — transient Azure timeout (FIXED)
 
 During live testing, one batch request (4 documents) hung for over 2 minutes
 with no response; the identical request succeeded in ~1.4 s minutes later.
 Interpretation: a transient service/network issue, possibly free-tier related.
-**Open question:** whether to add a client-side timeout + retry policy.
-The Azure SDK retries some failures automatically; a hard cap on total request
-time would improve worst-case behavior.
+**Fix applied:** `AzureLanguageService` now configures `TextAnalyticsClientOptions.Retry`
+with a 20s per-attempt `NetworkTimeout`, 2 retries, and exponential backoff.
+A hung call now fails within ~60s worst case instead of hanging indefinitely,
+surfacing as `RequestFailedException(Status 0)` which the controller already
+maps to `503 Service Unavailable`.
 
 ### Finding 3 — Azure's per-document limit vs our API limit (FIXED)
 
@@ -126,9 +129,10 @@ up to 5 chunks per request. Verified by automated test #10 and live Test D.
    extracts exactly 5 attribute types. Azure also returns Organization,
    DateTime, and other categories that could be added if the company wants
    them.
-3. **Mixed-label transcripts** — if only SOME lines have labels, unlabeled
-   lines are currently marked `Speaker 1` rather than continuing the previous
-   speaker. Improvement suggestion filed for `SpeakerRoleService`.
+3. **Mixed-label transcripts (FIXED)** — if only SOME lines have labels,
+   unlabeled lines now continue the previous speaker's role instead of being
+   marked `Speaker 1`. Covered by automated test
+   `Analyze_MixedLabelConversation_UnlabeledLineContinuesPreviousSpeaker`.
 4. **Armenian punctuation** — the Armenian full stop `։` (U+0589) looks like
    the Latin colon `:` but is a different character; a transcript using it as
    the label separator (`Օպերատոր։`) would not be recognized as labeled.

@@ -52,6 +52,11 @@ public class SpeakerRoleService : ISpeakerRoleService
 
         if (hasExplicitLabels)
         {
+            // Mixed-label transcripts: a line with no recognized label continues
+            // the PREVIOUS speaker's turn rather than resetting to "Speaker 1"
+            // (see docs/TestResults.md, Open questions #3).
+            string? lastRole = null;
+
             foreach (var line in lines)
             {
                 string role;
@@ -84,9 +89,14 @@ public class SpeakerRoleService : ISpeakerRoleService
                 }
                 else
                 {
-                    role = "Speaker 1";
+                    // No label on this line: continue whoever spoke last.
+                    // Before the first label appears, there is no "previous
+                    // speaker" yet, so fall back to "Speaker 1".
+                    role = lastRole ?? "Speaker 1";
                     text = line;
                 }
+
+                lastRole = role;
 
                 conversation.Add(new ConversationTurn
                 {

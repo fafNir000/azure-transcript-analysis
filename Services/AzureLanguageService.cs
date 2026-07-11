@@ -1,6 +1,7 @@
 using System.Text;
 using Azure;
 using Azure.AI.TextAnalytics;
+using Azure.Core;
 
 namespace Task_2_TranscriptAnalysis.Services;
 
@@ -68,9 +69,25 @@ public class AzureLanguageService : IAzureLanguageService
                 "Set 'AzureLanguageEndpoint' and 'AzureLanguageKey' via user-secrets.");
         }
 
+        // A hung Azure call was observed during live testing (docs/TestResults.md,
+        // Finding 2: one request sat with no response for 2+ minutes). Cap each
+        // attempt at 20s and allow 2 retries with exponential backoff before the
+        // SDK gives up and throws RequestFailedException(Status 0) — the
+        // controller already maps that to 503 Service Unavailable.
+        var options = new TextAnalyticsClientOptions
+        {
+            Retry =
+            {
+                NetworkTimeout = TimeSpan.FromSeconds(20),
+                MaxRetries = 2,
+                Mode = RetryMode.Exponential,
+                Delay = TimeSpan.FromSeconds(1),
+            },
+        };
+
         // The client is thread-safe, so one instance is shared by the whole app
         // (that is why this service is registered as a singleton in Program.cs).
-        _client = new TextAnalyticsClient(new Uri(endpoint), new AzureKeyCredential(key));
+        _client = new TextAnalyticsClient(new Uri(endpoint), new AzureKeyCredential(key), options);
     }
 
     /// <inheritdoc />

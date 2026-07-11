@@ -1,0 +1,12 @@
+{
+  "name": "task-2-transcript-analysis",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Repo-root tooling only (git hooks). The app is in /frontend and /.",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}

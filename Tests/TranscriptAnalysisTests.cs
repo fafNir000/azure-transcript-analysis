@@ -230,6 +230,31 @@ public class TranscriptAnalysisTests : IClassFixture<WebApplicationFactory<Progr
     }
 
     // ------------------------------------------------------------------
+    // Mixed-label conversation — a line with no recognized label must
+    // continue the PREVIOUS speaker's turn, not reset to "Speaker 1".
+    // ------------------------------------------------------------------
+    [Fact]
+    public async Task Analyze_MixedLabelConversation_UnlabeledLineContinuesPreviousSpeaker()
+    {
+        var client = CreateClient();
+
+        var response = await PostAsync(client,
+            "Agent: Hello, how can I help you?\nCaller: My name is John Smith.\nI live at 123 Main Street.\nAgent: Thank you.",
+            "en");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<TranscriptResponse>();
+        Assert.NotNull(body);
+        Assert.Equal(4, body!.Conversation.Count);
+        Assert.Equal("Agent", body.Conversation[0].Role);
+        Assert.Equal("Caller", body.Conversation[1].Role);
+        // Unlabeled line continues the Caller's turn:
+        Assert.Equal("Caller", body.Conversation[2].Role);
+        Assert.Equal("I live at 123 Main Street.", body.Conversation[2].Text);
+        Assert.Equal("Agent", body.Conversation[3].Role);
+    }
+
+    // ------------------------------------------------------------------
     // TEST 8 — conversation WITHOUT labels alternates Agent/Caller
     // ------------------------------------------------------------------
     [Fact]
