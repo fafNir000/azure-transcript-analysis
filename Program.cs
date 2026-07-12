@@ -14,12 +14,29 @@ builder.Services.AddSwaggerGen();           // Swagger UI for manual testing in 
 
 // CORS: browsers block a frontend served from another address (e.g. React on
 // localhost:3000) from calling this API unless we explicitly allow it.
-// This open policy is fine for development; tighten it to the real frontend
-// origin (.WithOrigins("https://our-app.example")) before production.
+//
+// Locally (no AllowedOrigins configured) we stay open so any dev port works.
+// In production, set the AllowedOrigins environment variable to the real
+// frontend's URL(s) (comma-separated for more than one) — e.g. the Netlify
+// site's https://your-app.netlify.app.
 const string FrontendCorsPolicy = "Frontend";
+string[] allowedOrigins = (builder.Configuration["AllowedOrigins"] ?? "")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
 builder.Services.AddCors(options =>
     options.AddPolicy(FrontendCorsPolicy, policy =>
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+    {
+        if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
+        }
+        else if (builder.Environment.IsDevelopment())
+        {
+            policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        }
+        // Production with no AllowedOrigins configured: no cross-origin
+        // requests are allowed — a safe default until it's set.
+    }));
 
 // ---------------------------------------------------------------------------
 // 2. Register OUR services (dependency injection)
@@ -48,7 +65,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection(); // redirect http:// requests to https://
+// Only redirect locally. Render (and most PaaS hosts) terminate HTTPS at
+// their own edge proxy and forward plain HTTP internally — redirecting here
+// too would create a redirect loop.
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseCors(FrontendCorsPolicy); // must run before MapControllers
 
