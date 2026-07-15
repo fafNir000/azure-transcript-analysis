@@ -4,7 +4,8 @@ using Task_2_TranscriptAnalysis.Services;
 // registers all services for dependency injection (DI), and starts the server.
 
 var builder = WebApplication.CreateBuilder(args);
-
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://*:{port}");
 // ---------------------------------------------------------------------------
 // 1. Register framework services
 // ---------------------------------------------------------------------------
